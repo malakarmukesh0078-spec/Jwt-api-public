@@ -307,6 +307,51 @@ def rizer_endpoint():
 
   return jsonify({"success": False, "error": "All platform login failed"}), 401
 
+@app.route("/token", methods=["GET"])
+def guest_to_jwt():
+  start_time = time.time()
+  uid = request.args.get("uid")
+  password = request.args.get("password")
+  if not uid or not password:
+    return jsonify({"error": "Missing uid or password"}), 400
+
+  token_data = get_token(uid, password)
+  access_token = token_data.get("access_token")
+  if not access_token:
+    return jsonify({"success": False, "error": "Invalid UID or Password"}), 401
+
+  inspect_url = f"https://100067.connect.garena.com/oauth/token/inspect?token={access_token}"
+  open_id = requests.get(inspect_url, timeout=10).json().get("open_id")
+  if not open_id:
+    return jsonify({"error": "open_id not found"}), 400
+
+  for pt in [2, 3, 4, 6, 8, 12]:
+    result = try_major_login(open_id, access_token, pt)
+    if result:
+      elapsed_time = round(time.time() - start_time, 2)
+      custom_response = {
+          "success": True,
+          "account_uid": result["account_uid"],
+          "region": result["region"],
+          "open_Id": open_id,
+          "Access_Token": access_token,
+          "jwt_yoken": result["token"],
+          "Platform_type_used": pt,
+          "Ob_version": "OB55",
+          "Client_Version": "1.132.1",
+          "Develover": "@XEROX_MODS",
+          "Telegram": "@SEXTYMODS",
+          "Uid": uid,
+          "Time_Spne": f"{elapsed_time}s",
+          "Status_Code": 200,
+      }
+      return Response(
+          json.dumps(custom_response, ensure_ascii=False, separators=(",", ":")),
+          status=200,
+          content_type="application/json; charset=utf-8",
+      )
+
+  return jsonify({"success": False, "error": "All platform login failed"}), 401
 
 
 
